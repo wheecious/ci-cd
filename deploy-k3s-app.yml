@@ -1,0 +1,37 @@
+image: docker:24.0
+services:
+  - docker:24.0-dind
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
+  WORKDIR: /home/$PROJECT_USER/$CI_PROJECT_NAME
+
+stages:
+  - build and push
+  - deploy
+
+before_script:
+  - eval $(ssh-agent -s)
+  - mkdir -p ~/.ssh
+  - ssh-add <(echo $SSH_PRIVATE_KEY | base64 -d)
+  - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+
+build and push:
+  stage: build and push
+  when: manual
+  script:
+    - '[[ -n "$SECRETS" ]] && (echo $SECRETS | sed "s/ /\n/g;" > secrets)'
+    - docker build . -t $CI_PROJECT_NAME
+    - docker save -o $CI_PROJECT_NAME.tar $CI_PROJECT_NAME
+    - ssh $PROJECT_USER@$PROJECT_HOST "[[ ! -d $WORKDIR/ ]] && mkdir $WORKDIR/ || true"
+    - scp $CI_PROJECT_NAME.tar $PROJECT_USER@$PROJECT_HOST:$WORKDIR/
+    - scp helm/* $PROJECT_USER@$PROJECT_HOST:$WORKDIR/
+
+deploy:
+  stage: deploy
+  when: manual
+  script:
+    - ssh $PROJECT_USER@$PROJECT_HOST "sudo docker load -i $WORKDIR/$CI_PROJECT_NAME.tar"
+    - ssh $PROJECT_USER@$PROJECT_HOST "sudo docker save $CI_PROJECT_NAME | sudo k3s ctr images import -"
+    - ssh $PROJECT_USER@$PROJECT_HOST "kubectl apply -f $WORKDIR/*.yaml; kubectl rollout restart deployment/$CI_PROJECT_NAME"
