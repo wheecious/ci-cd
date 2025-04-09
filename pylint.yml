@@ -1,0 +1,10 @@
+pylint:
+  stage: pre-build
+  when: always
+  image: python:latest
+  before_script:
+    - '[[ $PYLINT_DISABLE ]] && exit 0'
+    - echo "WARNING! PYLINT DISABLED! SKIPPING"
+    - pip install pylint
+  script:
+    - pylint .
