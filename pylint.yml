@@ -1,7 +1,10 @@
 pylint:
-  stage: pre-build
-  when: always
+  stage: pre-prod
   image: python:latest
+  rules:
+    - if: $CI_COMMIT_BRANCH != "main"
+      when: manual
+    - when: always
   before_script:
     - '[[ $PYLINT_DISABLE ]] && exit 0'
     - echo "WARNING! PYLINT DISABLED! SKIPPING"

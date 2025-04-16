@@ -6,9 +6,11 @@ variables:
   DOCKER_HOST: tcp://docker:2375
   DOCKER_TLS_CERTDIR: ""
   WORKDIR: /home/$PROJECT_USER/$CI_PROJECT_NAME
+  DEVDIR: $WORKDIR-dev
 
 stages:
-  - pre-build
+  - (dev) build_and_deploy
+  - pre-prod
   - build_and_push
   - deploy
 
@@ -20,27 +22,3 @@ before_script:
   - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
   - echo $KUBECONFIG_PROD | base64 -d > kubeconfig.yaml
   - chmod 600 kubeconfig.yaml
-
-build_and_push:
-  stage: build_and_push
-  when: manual
-  needs:
-    - job: pylint
-  script:
-    - docker build . -t "$CI_PROJECT_NAME:$CI_COMMIT_REF_NAME"
-    - docker save -o $CI_PROJECT_NAME.tar $CI_PROJECT_NAME
-    - ssh $PROJECT_USER@$PROJECT_HOST "[[ ! -d $WORKDIR/ ]] && mkdir $WORKDIR/ || true"
-    - scp $CI_PROJECT_NAME.tar $PROJECT_USER@$PROJECT_HOST:$WORKDIR/ || { echo "SCP failed"; exit 1; }
-    - scp -r helm/* $PROJECT_USER@$PROJECT_HOST:$WORKDIR/ || { echo "SCP failed"; exit 1; }
-
-deploy:
-  stage: deploy
-  when: manual
-  needs:
-    - job: build_and_push
-  script:
-    - apk add --no-cache gettext curl helm
-    - ssh $PROJECT_USER@$PROJECT_HOST "sudo docker load -i $WORKDIR/$CI_PROJECT_NAME.tar" # no container registry for us today, sorry
-    - ssh $PROJECT_USER@$PROJECT_HOST "sudo docker save $CI_PROJECT_NAME | sudo k3s ctr images import -"
-    - envsubst < helm/values.template.yaml > values.yaml && helm upgrade --install $CI_PROJECT_NAME helm/ -f values.yaml --kubeconfig kubeconfig.yaml
-    - ssh $PROJECT_USER@$PROJECT_HOST "rm -rf $WORKDIR/*"
