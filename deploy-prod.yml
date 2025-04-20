@@ -7,7 +7,7 @@ build_and_push:
     - docker build . -t "$CI_PROJECT_NAME:$CI_COMMIT_REF_NAME"
     - docker save -o $CI_PROJECT_NAME.tar $CI_PROJECT_NAME
     - ssh $PROJECT_USER@$PROJECT_HOST "[[ ! -d $WORKDIR/ ]] && mkdir $WORKDIR/ || true"
-    - scp $CI_PROJECT_NAME.tar $PROJECT_USER@$PROJECT_HOST:$WORKDIR/ || { echo "SCP failed"; exit 1; }
+    - scp $CI_PROJECT_NAME.tar $PROJECT_USER@$PROJECT_HOST:$WORKDIR/ || { echo "SCP failed"; exit 1; } # no container registry for us today, sorry
 
 deploy:
   stage: deploy
@@ -16,7 +16,8 @@ deploy:
     - job: build_and_push
     - job: deploy_dev
   script:
-    - ssh $PROJECT_USER@$PROJECT_HOST "sudo docker load -i $WORKDIR/$CI_PROJECT_NAME.tar" # no container registry for us today, sorry
+    - ssh $PROJECT_USER@$PROJECT_HOST "sudo docker load -i $WORKDIR/$CI_PROJECT_NAME.tar"
     - ssh $PROJECT_USER@$PROJECT_HOST "sudo docker save $CI_PROJECT_NAME | sudo k3s ctr images import -"
-    - envsubst < helm/values-prod.yaml > values.yaml && helm upgrade --install $CI_PROJECT_NAME helm/ -f values.yaml --kubeconfig kubeconfig.yaml --namespace default
+    - envsubst < helm/values-prod.yaml > values.yaml && helm upgrade --install $CI_PROJECT_NAME helm/ -f values.yaml --kubeconfig kubeconfig.yaml --namespace default --wait --atomic
     - ssh $PROJECT_USER@$PROJECT_HOST "rm -rf $WORKDIR/*"
+    - "[[ ! kubectl rollout status deployment/$CI_PROJECT_NAME --namespace default --kubeconfig kubeconfig.yaml --timeout=60s ]] && echo 'DEPLOY FAILED, ROLLING BACK'; helm rollback $CI_PROJECT_NAME --namespace default --kubeconfig kubeconfig.yaml; exit 1"

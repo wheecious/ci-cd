@@ -6,7 +6,7 @@ build_and_push_dev:
     - docker build . -t "$CI_PROJECT_NAME:$CI_COMMIT_REF_NAME-dev-$CI_COMMIT_SHORT_SHA"
     - docker save -o $CI_PROJECT_NAME.tar $CI_PROJECT_NAME
     - ssh $PROJECT_USER@$PROJECT_HOST "[[ ! -d $DEVDIR/ ]] && mkdir $DEVDIR/ || true"
-    - scp $CI_PROJECT_NAME.tar $PROJECT_USER@$PROJECT_HOST:$DEVDIR/ || { echo "SCP failed"; exit 1; }
+    - scp $CI_PROJECT_NAME.tar $PROJECT_USER@$PROJECT_HOST:$DEVDIR/ || { echo "SCP failed"; exit 1; } # no container registry for us today, sorry
 
 deploy_dev:
   stage: (dev) build_and_deploy
@@ -14,7 +14,7 @@ deploy_dev:
     - job: build_and_push_dev
   when: on_success
   script:
-    - ssh $PROJECT_USER@$PROJECT_HOST "sudo docker load -i $DEVDIR/$CI_PROJECT_NAME.tar" # no container registry for us today, sorry
+    - ssh $PROJECT_USER@$PROJECT_HOST "sudo docker load -i $DEVDIR/$CI_PROJECT_NAME.tar"
     - ssh $PROJECT_USER@$PROJECT_HOST "sudo docker save $CI_PROJECT_NAME | sudo k3s ctr images import -"
-    - envsubst < helm/values-dev.yaml > values.yaml && helm upgrade --install $CI_PROJECT_NAME-dev helm/ -f values.yaml --kubeconfig kubeconfig.yaml --namespace dev
+    - envsubst < helm/values-dev.yaml > values.yaml && helm upgrade --install $CI_PROJECT_NAME-dev helm/ -f values.yaml --kubeconfig kubeconfig.yaml --namespace dev --wait
     - ssh $PROJECT_USER@$PROJECT_HOST "rm -rf $DEVDIR/*"
