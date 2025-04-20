@@ -1,0 +1,22 @@
+image: python:latest
+stages:
+  - wheecious01
+
+before_script:
+  - set -o errexit -o pipefail
+  - eval $(ssh-agent -s)
+  - mkdir -p ~/.ssh
+  - ssh-add <(echo $SSH_PRIVATE_KEY | base64 -d)
+  - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+  - pip install ansible --no-cache-dir
+
+psql:
+  stage: wheecious01
+  rules:
+    - changes:
+      - ansible/wheecious01/**/*
+  when: always
+  script:
+    - echo "POSTGRES_PASSWORD=$PSQL_PASS" > ansible/wheecious01/.env
+    - echo "wheecious01 ansible_host=$PROJECT_HOST ansible_user=$PROJECT_USER" > ansible/wheecious01/inventory
+    - ansible-playbook ansible/wheecious01/pg-docker-setup.yml -i ansible/wheecious01/inventory

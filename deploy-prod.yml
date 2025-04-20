@@ -16,7 +16,6 @@ deploy:
     - job: build_and_push
     - job: deploy_dev
   script:
-    - apk add --no-cache gettext curl helm
     - ssh $PROJECT_USER@$PROJECT_HOST "sudo docker load -i $WORKDIR/$CI_PROJECT_NAME.tar" # no container registry for us today, sorry
     - ssh $PROJECT_USER@$PROJECT_HOST "sudo docker save $CI_PROJECT_NAME | sudo k3s ctr images import -"
     - envsubst < helm/values-prod.yaml > values.yaml && helm upgrade --install $CI_PROJECT_NAME helm/ -f values.yaml --kubeconfig kubeconfig.yaml --namespace default
