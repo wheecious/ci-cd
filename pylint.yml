@@ -6,8 +6,6 @@ pylint:
       when: manual
     - when: always
   before_script:
-    - '[[ $PYLINT_DISABLE ]] && exit 0'
-    - echo "WARNING! PYLINT DISABLED! SKIPPING"
     - pip install pylint
   script:
     - pylint .
