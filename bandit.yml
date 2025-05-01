@@ -1,0 +1,11 @@
+bandit:
+  stage: pre-prod
+  image: python:latest
+  rules:
+    - if: $CI_COMMIT_BRANCH != "main"
+      when: manual
+    - when: always
+  before_script:
+    - pip install bandit
+  script:
+    - bandit -r ./

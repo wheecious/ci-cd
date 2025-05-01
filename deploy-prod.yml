@@ -4,7 +4,7 @@ build_and_push:
   needs:
     - job: pylint
   script:
-    - docker build . -t "$CI_PROJECT_NAME:$CI_COMMIT_REF_NAME"
+    - docker build . -t "$CI_PROJECT_NAME:$CI_COMMIT_REF_NAME-prod-$CI_COMMIT_SHORT_SHA"
     - docker save -o $CI_PROJECT_NAME.tar $CI_PROJECT_NAME
     - ssh $PROJECT_USER@$PROJECT_HOST "[[ ! -d $WORKDIR/ ]] && mkdir $WORKDIR/ || true"
     - scp $CI_PROJECT_NAME.tar $PROJECT_USER@$PROJECT_HOST:$WORKDIR/ || { echo "SCP failed"; exit 1; } # no container registry for us today, sorry
@@ -20,4 +20,5 @@ deploy:
     - ssh $PROJECT_USER@$PROJECT_HOST "sudo docker save $CI_PROJECT_NAME | sudo k3s ctr images import -"
     - envsubst < helm/values-prod.yaml > values.yaml && helm upgrade --install $CI_PROJECT_NAME helm/ -f values.yaml --kubeconfig kubeconfig.yaml --namespace default --wait --atomic
     - ssh $PROJECT_USER@$PROJECT_HOST "rm -rf $WORKDIR/*"
-    - "[[ ! kubectl rollout status deployment/$CI_PROJECT_NAME --namespace default --kubeconfig kubeconfig.yaml --timeout=60s ]] && echo 'DEPLOY FAILED, ROLLING BACK'; helm rollback $CI_PROJECT_NAME --namespace default --kubeconfig kubeconfig.yaml; exit 1"
+    #- kubectl rollout status deployment/$CI_PROJECT_NAME --namespace default --kubeconfig kubeconfig.yaml --timeout=60s
+    #- "[[ ! 'kubectl rollout status deployment/$CI_PROJECT_NAME --namespace default --kubeconfig kubeconfig.yaml --timeout=60s' ]] && echo 'DEPLOY FAILED, ROLLING BACK'; helm rollback $CI_PROJECT_NAME --namespace default --kubeconfig kubeconfig.yaml; exit 1"

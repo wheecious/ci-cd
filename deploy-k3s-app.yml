@@ -9,7 +9,7 @@ variables:
   DEVDIR: $WORKDIR-dev
 
 stages:
-  - (dev) build_and_deploy
+  - DEV_build_and_deploy
   - pre-prod
   - build_and_push
   - deploy

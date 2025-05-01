@@ -1,0 +1,11 @@
+flake8:
+  stage: pre-prod
+  image: python:latest
+  rules:
+    - if: $CI_COMMIT_BRANCH != "main"
+      when: manual
+    - when: always
+  before_script:
+    - pip install flake8
+  script:
+    - flake8 ./

@@ -8,15 +8,20 @@ before_script:
   - mkdir -p ~/.ssh
   - ssh-add <(echo $SSH_PRIVATE_KEY | base64 -d)
   - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
-  - pip install ansible --no-cache-dir
+  - pip install ansible kubernetes --no-cache-dir
+  - ansible-galaxy collection install community.kubernetes
 
-psql:
+wheecious01:
   stage: wheecious01
   rules:
     - changes:
       - ansible/wheecious01/**/*
   when: always
   script:
-    - echo "POSTGRES_PASSWORD=$PSQL_PASS" > ansible/wheecious01/.env
+    - echo $KUBECONFIG_PROD | base64 -d > ansible/wheecious01/kubeconfig.yaml
+    - chmod 600 ansible/wheecious01/kubeconfig.yaml
+    - 'echo "grafana_admin_pass: $GRAFANA_ADMIN_PASS" > ansible/wheecious01/host_vars/wheecious01.yaml'
+    - echo "POSTGRES_PASSWORD=$PSQL_PASS" > ansible/wheecious01/psql/.env
     - echo "wheecious01 ansible_host=$PROJECT_HOST ansible_user=$PROJECT_USER" > ansible/wheecious01/inventory
-    - ansible-playbook ansible/wheecious01/pg-docker-setup.yml -i ansible/wheecious01/inventory
+    - cd ansible/wheecious01
+    - ansible-playbook playbook.yml -i inventory
