@@ -1,3 +1,4 @@
+---
 bandit:
   stage: pre-prod
   image: python:latest

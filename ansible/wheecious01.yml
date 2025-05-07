@@ -1,4 +1,4 @@
-image: python:latest
+image: gp-0:latest
 stages:
   - wheecious01
 

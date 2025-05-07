@@ -1,0 +1,21 @@
+---
+check image:
+  stage: tests
+  needs:
+    - job: deploy_dev
+  when: on_success
+  allow_failure: false
+  script:
+    - kubectl describe pod -n dev --kubeconfig kubeconfig.yaml "$(kubectl get pods -n dev --kubeconfig kubeconfig.yaml | grep hamster.*Running | awk '{print $1}')" | grep Image | awk 'NR==1 {print $2}' > image
+    - cat image
+    - '[[ $(cat image) == $CI_PROJECT_NAME:$CI_COMMIT_REF_NAME-dev-$CI_COMMIT_SHORT_SHA ]] || exit 1'
+
+endpoints:
+  stage: tests
+  needs:
+    - job: "check image"
+  when: on_success
+  script:
+    - pip install fabric
+    - python3 tests/health_check.py $PROJECT_USER $PROJECT_HOST <(echo $SSH_PRIVATE_KEY | base64 -d)
+    - python3 tests/endpoints.py $PROJECT_USER $PROJECT_HOST <(echo $SSH_PRIVATE_KEY | base64 -d)

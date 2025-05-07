@@ -1,3 +1,4 @@
+---
 build_and_push_dev:
   stage: DEV_build_and_deploy
   needs: []
@@ -14,6 +15,7 @@ deploy_dev:
   needs:
     - job: build_and_push_dev
   when: on_success
+  allow_failure: false
   script:
     - ssh $PROJECT_USER@$PROJECT_HOST "ls -lh $DEVDIR/$CI_PROJECT_NAME.tar || echo 'the image file is missing!'"
     - ssh $PROJECT_USER@$PROJECT_HOST "sudo docker load -i $DEVDIR/$CI_PROJECT_NAME.tar"
